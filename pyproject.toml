@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lantern-grid"
+version = "0.1.0"
+description = "Storm-outage readiness for distribution utilities: who loses power, for how long, and what to do — every number from a model, never from the LLM."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Hemant Gupta" }]
+keywords = ["utility", "outage", "storm", "resilience", "fragility", "simulation", "grounded-llm"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+]
+dependencies = ["numpy>=1.24", "scikit-learn>=1.3", "fastapi>=0.110", "uvicorn>=0.27", "httpx>=0.27", "pydantic>=2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+lantern = "lantern.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/hemant-aigeek/lantern"
+
+[tool.setuptools.packages.find]
+include = ["lantern*"]
+
+[tool.setuptools.package-data]
+lantern = ["web/index.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B904", "E741"]

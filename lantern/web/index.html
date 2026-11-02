@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lantern</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #171e26; --line: #2a3440; --text: #e6edf3; --muted: #8b98a5;
+    --accent: #f5b942; --low: #3fb950; --moderate: #d4a72c; --high: #f0883e; --veryhigh: #f85149;
+    --font: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--font); }
+  header { display: flex; align-items: center; gap: 16px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
+  header h1 span { color: var(--accent); }
+  .tabs button { background: none; border: 1px solid var(--line); color: var(--muted); padding: 5px 12px; border-radius: 6px; cursor: pointer; }
+  .tabs button.on { color: var(--text); border-color: var(--accent); }
+  main { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; padding: 12px 16px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin: 0 0 8px; }
+  svg { width: 100%; height: auto; background: #0b0f14; border-radius: 8px; display: block; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  input[type=text], select { background: #0b0f14; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; }
+  input[type=text] { flex: 1; min-width: 160px; }
+  input[type=range] { flex: 1; accent-color: var(--accent); }
+  button.primary { background: var(--accent); color: #111; border: 0; padding: 7px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+  button.ghost { background: none; color: var(--text); border: 1px solid var(--line); padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+  .hits { display: flex; flex-direction: column; gap: 4px; }
+  .hits button { text-align: left; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .kpi { background: #0b0f14; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+  .kpi b { display: block; font-size: 20px; }
+  .kpi small { color: var(--muted); }
+  .lvl-low { color: var(--low); } .lvl-moderate { color: var(--moderate); } .lvl-high { color: var(--high); } .lvl-very.high, .lvl-veryhigh { color: var(--veryhigh); }
+  .chat { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow: auto; margin-bottom: 8px; }
+  .msg { padding: 8px 10px; border-radius: 8px; max-width: 95%; }
+  .msg.you { background: #243041; align-self: flex-end; }
+  .msg.bot { background: #0b0f14; border: 1px solid var(--line); }
+  .msg ul { margin: 6px 0 0 18px; padding: 0; color: var(--muted); }
+  .meter { height: 6px; background: #0b0f14; border-radius: 3px; overflow: hidden; margin-top: 6px; }
+  .meter i { display: block; height: 100%; background: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 500; }
+  .muted { color: var(--muted); }
+  .legend { display: flex; gap: 12px; font-size: 12px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+  .hidden { display: none; }
+  .chips button { margin: 2px 4px 2px 0; }
+  .actions li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span>◐</span> Lantern</h1>
+  <div class="tabs"><button id="tab-home" class="on">My home</button><button id="tab-ops">Operations</button></div>
+  <div class="muted" id="status" style="margin-left:auto"></div>
+</header>
+
+<main>
+  <section class="panel">
+    <h2>Storm scenario</h2>
+    <div class="row">
+      <select id="mode"><option value="forecast">Forecast day</option><option value="sim">What-if storm</option></select>
+      <div id="forecast-ctl" class="row" style="flex:1">
+        <input type="range" id="day" min="0" max="6" value="2"><span id="day-label"></span>
+      </div>
+      <div id="sim-ctl" class="row hidden" style="flex:1">
+        <label>Gust <input type="range" id="gust" min="25" max="100" value="60"> <b id="gust-label">60 mph</b></label>
+        <label>Wet <input type="range" id="wet" min="0" max="100" value="40"> <span id="wet-label">0.4</span></label>
+      </div>
+    </div>
+    <svg id="map" viewBox="0 0 800 640"></svg>
+    <div class="legend">
+      <span><i style="background:#3fb950"></i>&lt;5% damage</span><span><i style="background:#d4a72c"></i>5–20%</span>
+      <span><i style="background:#f0883e"></i>20–50%</span><span><i style="background:#f85149"></i>&gt;50%</span>
+      <span>· dashed = underground · ◆ priority facility · click a home to select it</span>
+    </div>
+  </section>
+
+  <section class="panel" id="home-panel">
+    <h2>My home</h2>
+    <div class="row"><input type="text" id="q" placeholder="Search an address, e.g. Maple"><button class="primary" id="search">Find</button><button class="ghost" id="demo">Try a demo address</button></div>
+    <div class="hits" id="hits"></div>
+    <div id="home-detail" class="hidden">
+      <div class="row"><b id="addr"></b></div>
+      <div class="kpis">
+        <div class="kpi"><b id="k-risk">–</b><small>chance of an outage</small></div>
+        <div class="kpi"><b id="k-hours">–</b><small>hours to restore (P50)</small></div>
+        <div class="kpi"><b id="k-conf">–</b><small>confidence</small></div>
+      </div>
+      <div class="chips">
+        <button class="ghost ask">Will I lose power?</button><button class="ghost ask">How long until my power is back?</button>
+        <button class="ghost ask">What should I do?</button><button class="ghost ask">Do I qualify for alerts?</button>
+      </div>
+      <div class="chat" id="chat"></div>
+      <div class="row"><input type="text" id="msg" placeholder="Ask anything about your outlook"><button class="primary" id="send">Ask</button></div>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="ops-panel">
+    <h2>Operations briefing</h2>
+    <div class="row"><label>Crews available <input type="range" id="crews" min="1" max="40" value="6"> <b id="crews-label">6</b></label></div>
+    <div class="kpis">
+      <div class="kpi"><b id="o-out">–</b><small>customers out (median)</small></div>
+      <div class="kpi"><b id="o-hours">–</b><small>crew-hours of repair</small></div>
+      <div class="kpi"><b id="o-90">–</b><small>hours to 90% restored</small></div>
+      <div class="kpi"><b id="o-crews">–</b><small>crews for 24 h</small></div>
+    </div>
+    <h2>Suggested actions</h2>
+    <ul class="actions" id="actions"></ul>
+    <h2>Feeders</h2>
+    <table><thead><tr><th>Feeder</th><th>Customers</th><th>Expected out</th><th>Trunk failure</th><th>High-risk assets</th><th>Priority sites</th></tr></thead><tbody id="feeders"></tbody></table>
+    <div class="chat" id="ops-chat" style="margin-top:10px"></div>
+    <div class="row"><input type="text" id="ops-msg" placeholder="Ask for a briefing, e.g. 'how bad is F2?'"><button class="primary" id="ops-send">Ask</button></div>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const state = { mode: "forecast", day: 2, gust: 60, wet: 0.4, crews: 6, premise: null, forecast: [], view: "home" };
+
+function scenarioQuery() {
+  return state.mode === "sim" ? `gust=${state.gust}&wet=${state.wet}` : `day=${state.day}`;
+}
+function scenarioBody() {
+  return state.mode === "sim" ? { gust: state.gust, wet: state.wet } : { day: state.day };
+}
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+const colour = (p) => p < 0.05 ? "#3fb950" : p < 0.2 ? "#d4a72c" : p < 0.5 ? "#f0883e" : "#f85149";
+const lvlClass = (l) => "lvl-" + l.replace(" ", "");
+
+// ---- map -------------------------------------------------------------------
+let mapData = null;
+async function drawMap() {
+  mapData = await api(`/map?${scenarioQuery()}`);
+  const xs = mapData.premises.map(p => p.x).concat(mapData.assets.map(a => a.x));
+  const ys = mapData.premises.map(p => p.y).concat(mapData.assets.map(a => a.y));
+  const minx = Math.min(...xs) - .3, maxx = Math.max(...xs) + .3, miny = Math.min(...ys) - .3, maxy = Math.max(...ys) + .3;
+  const sx = 800 / (maxx - minx), sy = 640 / (maxy - miny), s = Math.min(sx, sy);
+  const X = (x) => (x - minx) * s + (800 - (maxx - minx) * s) / 2, Y = (y) => 640 - ((y - miny) * s + (640 - (maxy - miny) * s) / 2);
+  let out = "";
+  for (const a of mapData.assets) {
+    if (a.px === null) continue;
+    const dash = a.underground ? ' stroke-dasharray="4 3"' : "";
+    const w = a.type === "primary" ? 3 : 1.5;
+    out += `<line x1="${X(a.px)}" y1="${Y(a.py)}" x2="${X(a.x)}" y2="${Y(a.y)}" stroke="${colour(a.p_fail)}" stroke-width="${w}"${dash} opacity=".9"><title>${a.type} ${a.id} · ${(a.p_fail*100).toFixed(1)}% · ${a.customers} customers downstream</title></line>`;
+  }
+  for (const a of mapData.assets) {
+    if (a.type === "transformer" || a.type === "pole") {
+      out += `<circle cx="${X(a.x)}" cy="${Y(a.y)}" r="${a.type === "pole" ? 2 : 2.5}" fill="${colour(a.p_fail)}"><title>${a.type} · ${(a.p_fail*100).toFixed(1)}%</title></circle>`;
+    }
+  }
+  for (const p of mapData.premises) {
+    const sel = state.premise === p.id;
+    if (p.kind !== "residential" && p.kind !== "commercial") {
+      out += `<rect data-id="${p.id}" class="home" x="${X(p.x)-5}" y="${Y(p.y)-5}" width="10" height="10" transform="rotate(45 ${X(p.x)} ${Y(p.y)})" fill="${sel ? "#fff" : "#f5b942"}" stroke="#111"><title>${p.kind} ${p.id}</title></rect>`;
+    } else {
+      out += `<circle data-id="${p.id}" class="home" cx="${X(p.x)}" cy="${Y(p.y)}" r="${sel ? 6 : 1.8}" fill="${sel ? "#fff" : "#6b7a8c"}" stroke="${sel ? "#f5b942" : "none"}" stroke-width="2"><title>home ${p.id}</title></circle>`;
+    }
+  }
+  out += `<circle cx="${X(0)}" cy="${Y(0)}" r="7" fill="#fff"/><text x="${X(0)+10}" y="${Y(0)+4}" fill="#8b98a5" font-size="11">substation</text>`;
+  $("#map").innerHTML = out;
+  $("#map").querySelectorAll(".home").forEach(el => el.addEventListener("click", () => selectPremise(el.dataset.id)));
+  $("#status").textContent = `${mapData.scenario.label} · peak ${mapData.scenario.peak_gust_mph} mph`;
+}
+
+// ---- scenario controls -----------------------------------------------------------
+async function loadForecast() {
+  const f = await api("/forecast");
+  state.forecast = f.days;
+  dayLabel();
+}
+function dayLabel() {
+  const d = state.forecast[state.day];
+  $("#day-label").textContent = d ? `${d.date} · ${d.summary} · ${d.gust_mph} mph` : `day ${state.day}`;
+}
+$("#mode").addEventListener("change", (e) => { state.mode = e.target.value; $("#forecast-ctl").classList.toggle("hidden", state.mode === "sim"); $("#sim-ctl").classList.toggle("hidden", state.mode !== "sim"); refresh(); });
+$("#day").addEventListener("input", (e) => { state.day = +e.target.value; dayLabel(); });
+$("#day").addEventListener("change", refresh);
+$("#gust").addEventListener("input", (e) => { state.gust = +e.target.value; $("#gust-label").textContent = `${state.gust} mph`; });
+$("#gust").addEventListener("change", refresh);
+$("#wet").addEventListener("input", (e) => { state.wet = e.target.value / 100; $("#wet-label").textContent = state.wet.toFixed(2); });
+$("#wet").addEventListener("change", refresh);
+$("#crews").addEventListener("input", (e) => { state.crews = +e.target.value; $("#crews-label").textContent = state.crews; });
+$("#crews").addEventListener("change", refresh);
+
+// ---- tabs ----------------------------------------------------------------------
+function setView(v) {
+  state.view = v;
+  $("#tab-home").classList.toggle("on", v === "home"); $("#tab-ops").classList.toggle("on", v === "ops");
+  $("#home-panel").classList.toggle("hidden", v !== "home"); $("#ops-panel").classList.toggle("hidden", v !== "ops");
+  refresh();
+}
+$("#tab-home").onclick = () => setView("home");
+$("#tab-ops").onclick = () => setView("ops");
+
+// ---- my home -------------------------------------------------------------------
+async function search(q) {
+  const r = await api(`/lookup?q=${encodeURIComponent(q)}`);
+  $("#hits").innerHTML = r.matches.map(m => `<button class="ghost" data-id="${m.premise_id}">${m.address}</button>`).join("") || `<span class="muted">No match.</span>`;
+  $("#hits").querySelectorAll("button").forEach(b => b.onclick = () => selectPremise(b.dataset.id));
+}
+$("#search").onclick = () => search($("#q").value);
+$("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") search($("#q").value); });
+$("#demo").onclick = async () => { const r = await api("/lookup?q=Maple"); if (r.matches[0]) selectPremise(r.matches[0].premise_id); };
+
+async function selectPremise(id) {
+  state.premise = id;
+  $("#hits").innerHTML = "";
+  $("#home-detail").classList.remove("hidden");
+  $("#chat").innerHTML = "";
+  await refresh();
+}
+async function refreshHome() {
+  if (!state.premise) return;
+  const [risk, rt] = await Promise.all([
+    api(`/premises/${state.premise}/risk?${scenarioQuery()}`),
+    api(`/premises/${state.premise}/restoration?${scenarioQuery()}&crews=${state.crews}`),
+  ]);
+  $("#addr").textContent = risk.address;
+  $("#k-risk").innerHTML = `<span class="${lvlClass(risk.level)}">${Math.round(risk.p_outage * 100)}%</span> <small class="muted">${risk.level}</small>`;
+  $("#k-hours").textContent = rt.hours_p50 ? `${rt.hours_p50} (${rt.hours_p10}–${rt.hours_p90})` : "–";
+  $("#k-conf").innerHTML = `${Math.round(risk.confidence.score * 100)}% <small class="muted">${risk.confidence.label}</small>`;
+}
+async function ask(message, audience) {
+  const box = audience === "operator" ? $("#ops-chat") : $("#chat");
+  box.insertAdjacentHTML("beforeend", `<div class="msg you">${escape(message)}</div>`);
+  box.scrollTop = box.scrollHeight;
+  const r = await api("/chat", { method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ message, premise_id: audience === "operator" ? null : state.premise, audience, crews: state.crews, ...scenarioBody() }) });
+  const missing = r.confidence.missing.length ? `<div class="muted" style="margin-top:4px">Missing: ${r.confidence.missing.map(escape).join("; ")}</div>` : "";
+  box.insertAdjacentHTML("beforeend", `<div class="msg bot">${escape(r.answer)}<ul>${r.could_change.map(c => `<li>${escape(c)}</li>`).join("")}</ul>
+    <div class="muted" style="margin-top:6px;font-size:12px">confidence ${Math.round(r.confidence.score*100)}% (${r.confidence.label}) · ${r.voice}</div><div class="meter"><i style="width:${r.confidence.score*100}%"></i></div>${missing}</div>`);
+  box.scrollTop = box.scrollHeight;
+}
+document.querySelectorAll(".ask").forEach(b => b.onclick = () => ask(b.textContent, "customer"));
+$("#send").onclick = () => { const m = $("#msg").value.trim(); if (m) { ask(m, "customer"); $("#msg").value = ""; } };
+$("#msg").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#send").click(); });
+$("#ops-send").onclick = () => { const m = $("#ops-msg").value.trim(); if (m) { ask(m, "operator"); $("#ops-msg").value = ""; } };
+$("#ops-msg").addEventListener("keydown", (e) => { if (e.key === "Enter") $("#ops-send").click(); });
+
+// ---- operations ------------------------------------------------------------------
+async function refreshOps() {
+  const b = await api(`/ops/briefing?${scenarioQuery()}&crews=${state.crews}`);
+  $("#o-out").textContent = `${Math.round(b.area.customers_out_p50)} / ${b.customers_total}`;
+  $("#o-hours").textContent = Math.round(b.area.crew_hours_p50);
+  $("#o-90").textContent = `${b.area.hours_to_90pct_p50} (P90 ${b.area.hours_to_90pct_p90})`;
+  $("#o-crews").textContent = b.area.crews_for_24h;
+  $("#actions").innerHTML = b.actions.map(a => `<li>${escape(a)}</li>`).join("") || `<li class="muted">No priority actions at this scenario.</li>`;
+  $("#feeders").innerHTML = b.feeders.map(f => `<tr><td>${f.feeder}</td><td>${f.customers}</td><td>${f.expected_customers_out} (${Math.round(f.share_out*100)}%)</td><td>${Math.round(f.p_any_trunk_failure*100)}%</td><td>${f.high_risk_assets}</td><td>${f.priority_facilities.map(p => `<span class="${lvlClass(p.level)}">${p.kind}</span>`).join(", ")}</td></tr>`).join("");
+}
+
+function escape(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+async function refresh() {
+  await drawMap();
+  if (state.view === "ops") await refreshOps(); else await refreshHome();
+}
+(async () => { await loadForecast(); await refresh(); })();
+</script>
+</body>
+</html>
